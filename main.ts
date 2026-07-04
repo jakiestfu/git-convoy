@@ -903,8 +903,7 @@ async function runConfigure(): Promise<void> {
     if (CSEL === 0) cur = bold(cyan("❯"));
     const state = SHOW_CHECKS ? green("[on]") : dim("[off]");
     LINES.push(
-      `  ${cur} Show checks ${state} ${
-        dim("· [passed/total] check status on each PR")
+      `  ${cur} Show checks ${state} ${dim("· [passed/total] check status on each PR")
       }`,
     );
     LINES.push("");
@@ -925,10 +924,9 @@ async function runConfigure(): Promise<void> {
 
     LINES.push("");
     LINES.push(
-      `  ${
-        dim(
-          "↑↓ move · space toggle · a-z 0-9 bind · enter rename · esc unbind · q quit",
-        )
+      `  ${dim(
+        "↑↓ move · space toggle · a-z 0-9 bind · enter rename · esc unbind · q quit",
+      )
       }`,
     );
     if (CMSG) {
@@ -1127,9 +1125,8 @@ function buildLines(): void {
     let max = cols - ind.length - 32;
     if (max < 12) max = 12;
     if (title.length > max) title = title.slice(0, max - 1) + "…";
-    const meta = `${dim(`#${row.num}`)} ${title}  ${green(`+${row.adds}`)} ${
-      red(`−${row.dels}`)
-    }${dim(` · ${row.ahead} ahead`)}`;
+    const meta = `${dim(`#${row.num}`)} ${title}  ${green(`+${row.adds}`)} ${red(`−${row.dels}`)
+      }${dim(` · ${row.ahead} ahead`)}`;
     LINES.push(`  ${ind}    ${meta}`);
   }
 
