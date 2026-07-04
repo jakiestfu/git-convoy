@@ -90,13 +90,15 @@ async function requireDeps(): Promise<void> {
   }
 }
 
-async function repoSlug(): Promise<string> {
-  let url = await tryOut("git", ["remote", "get-url", "origin"]);
-  if (!url) return "";
-  url = url.replace(/\.git$/, "")
+export function normalizeRepoUrl(url: string): string {
+  return url.replace(/\.git$/, "")
     .replace(/^git@github\.com:/, "")
     .replace(/^https:\/\/github\.com\//, "");
-  return url;
+}
+
+async function repoSlug(): Promise<string> {
+  const url = await tryOut("git", ["remote", "get-url", "origin"]);
+  return url ? normalizeRepoUrl(url) : "";
 }
 
 // ── Config ───────────────────────────────────────────────────────────────────
@@ -193,22 +195,29 @@ const FAILING = new Set([
   "ERROR",
 ]);
 
+// summarizeChecks: fold a statusCheckRollup down to "passed/total" plus a
+// GitHub-style color — red if any check failed, else yellow if any is still
+// pending, else green.
+export function summarizeChecks(
+  rollup: unknown[],
+): { checks: string; checksColor: string } {
+  if (rollup.length === 0) return { checks: "", checksColor: "" };
+  const passed = rollup.filter((ch) => PASSING.has(verdict(ch)));
+  const checks = `${passed.length}/${rollup.length}`;
+  let checksColor;
+  if (rollup.some((ch) => FAILING.has(verdict(ch)))) {
+    checksColor = "red";
+  } else if (passed.length < rollup.length) {
+    checksColor = "yellow";
+  } else {
+    checksColor = "green";
+  }
+  return { checks, checksColor };
+}
+
 // deno-lint-ignore no-explicit-any
 function ingestPr(pr: any): string {
-  let checks = "";
-  let checksColor = "";
-  const rollup = pr.statusCheckRollup ?? [];
-  if (rollup.length > 0) {
-    const passed = rollup.filter((ch: unknown) => PASSING.has(verdict(ch)));
-    checks = `${passed.length}/${rollup.length}`;
-    if (rollup.some((ch: unknown) => FAILING.has(verdict(ch)))) {
-      checksColor = "red";
-    } else if (passed.length < rollup.length) {
-      checksColor = "yellow";
-    } else {
-      checksColor = "green";
-    }
-  }
+  const { checks, checksColor } = summarizeChecks(pr.statusCheckRollup ?? []);
   PRS.set(pr.headRefName, {
     base: pr.baseRefName,
     num: String(pr.number),
@@ -755,15 +764,16 @@ async function cleanup(): Promise<void> {
 // paint: redraw LINES on the alternate screen from the top-left (shared by
 // the main and configure views). When LINES is taller than the window, a
 // scroll window keeps SEL_LINE visible.
+// viewTop: first visible line index — 0 while everything fits, otherwise
+// centered on the selection and clamped to the ends of the content.
+export function viewTop(total: number, rows: number, selLine: number): number {
+  if (total <= rows) return 0;
+  return Math.max(0, Math.min(selLine - Math.floor(rows / 2), total - rows));
+}
+
 function paint(): void {
   const rows = termRows();
-  let top = 0;
-  if (LINES.length > rows) {
-    top = Math.max(
-      0,
-      Math.min(SEL_LINE - Math.floor(rows / 2), LINES.length - rows),
-    );
-  }
+  const top = viewTop(LINES.length, rows, SEL_LINE);
   const view = LINES.slice(top, top + rows);
   let out = "\x1b[H";
   for (let i = 0; i < view.length; i++) {
@@ -790,18 +800,14 @@ function termRows(): number {
   }
 }
 
-function tailLines(s: string, n: number): string {
+export function tailLines(s: string, n: number): string {
   const lines = s.replace(/\n$/, "").split("\n");
   return lines.slice(-n).join("\n");
 }
 
-// readKeys: block for input, return decoded key names. Escape sequences
-// arrive as one chunk in raw mode; a lone ESC byte is the escape key.
-const keyBuf = new Uint8Array(64);
-async function readKeys(): Promise<string[] | null> {
-  const n = await Deno.stdin.read(keyBuf);
-  if (n === null) return null;
-  const s = new TextDecoder().decode(keyBuf.subarray(0, n));
+// decodeKeys: split raw input into key names. Escape sequences arrive as one
+// chunk in raw mode; a lone ESC byte is the escape key.
+export function decodeKeys(s: string): string[] {
   const keys: string[] = [];
   let i = 0;
   while (i < s.length) {
@@ -814,6 +820,14 @@ async function readKeys(): Promise<string[] | null> {
     }
   }
   return keys;
+}
+
+// readKeys: block for input, return decoded key names.
+const keyBuf = new Uint8Array(64);
+async function readKeys(): Promise<string[] | null> {
+  const n = await Deno.stdin.read(keyBuf);
+  if (n === null) return null;
+  return decodeKeys(new TextDecoder().decode(keyBuf.subarray(0, n)));
 }
 
 // readLine: temporarily leave raw mode so the terminal handles line editing.
@@ -1430,29 +1444,31 @@ async function main(): Promise<void> {
   await inputLoop();
 }
 
-if (INTERACTIVE && Deno.build.os !== "windows") {
-  Deno.addSignalListener("SIGWINCH", () => {
-    if (ALT) paint();
-  });
-}
+if (import.meta.main) {
+  if (INTERACTIVE && Deno.build.os !== "windows") {
+    Deno.addSignalListener("SIGWINCH", () => {
+      if (ALT) paint();
+    });
+  }
 
-for (const sig of ["SIGINT", "SIGTERM"] as const) {
-  Deno.addSignalListener(sig, async () => {
+  for (const sig of ["SIGINT", "SIGTERM"] as const) {
+    Deno.addSignalListener(sig, async () => {
+      await cleanup();
+      Deno.exit(130);
+    });
+  }
+
+  let exitCode = 0;
+  let fatal = "";
+  try {
+    await main();
+  } catch (e) {
+    // Printed after cleanup(), so leaving the alternate screen can't erase it.
+    fatal = e instanceof Error ? e.message : String(e);
+    exitCode = 1;
+  } finally {
     await cleanup();
-    Deno.exit(130);
-  });
+  }
+  if (fatal) console.error(fatal);
+  Deno.exit(exitCode);
 }
-
-let exitCode = 0;
-let fatal = "";
-try {
-  await main();
-} catch (e) {
-  // Printed after cleanup(), so leaving the alternate screen can't erase it.
-  fatal = e instanceof Error ? e.message : String(e);
-  exitCode = 1;
-} finally {
-  await cleanup();
-}
-if (fatal) console.error(fatal);
-Deno.exit(exitCode);
