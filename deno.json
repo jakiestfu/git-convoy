@@ -1,6 +1,7 @@
 {
   "tasks": {
-    "check": "deno check main.ts",
+    "check": "deno check main.ts main_test.ts",
+    "test": "deno test --allow-run --allow-read --allow-write --allow-env",
     "fmt": "deno fmt",
     "run": "deno run --allow-run=git,gh --allow-read --allow-write --allow-env --allow-net main.ts",
     "compile": "deno compile --allow-run=git,gh --allow-read --allow-write --allow-env --allow-net --output dist/git-convoy main.ts"
