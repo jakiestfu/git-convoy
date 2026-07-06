@@ -729,6 +729,16 @@ async function rebaseBranch(
   old: string,
   push: boolean,
 ): Promise<void> {
+  // `git cherry p b old` lists old..b in order, marking commits already
+  // patch-equivalent in p with "-". Plain `git rebase p` skips these
+  // automatically, but --onto's upstream is an ancestor of b, so git's
+  // detection never fires — advance old past the applied prefix ourselves.
+  const cherry = await tryOut("git", ["cherry", p, b, old]);
+  for (const line of cherry?.split("\n") ?? []) {
+    const [mark, sha] = line.split(" ");
+    if (mark === "-" && sha) old = sha;
+    else break;
+  }
   await x("git", ["rebase", "--onto", p, old, b]);
   if (push) {
     await x("git", ["push", "--force-with-lease", "origin", b]);
@@ -867,7 +877,7 @@ let SEL = 1;
 const EXPANDED = new Set<string>();
 let CHECK_SEL = -1;
 let REFRESH_LEFT = 0;
-let REFRESH_TIMER: number | undefined;
+let REFRESH_TIMER: ReturnType<typeof setInterval> | undefined;
 let REFRESHING = false;
 let BUSY = false;
 // True while the initial PR load is still in flight — the stack renders as
