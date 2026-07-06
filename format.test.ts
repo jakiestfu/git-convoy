@@ -1,8 +1,8 @@
 // Tests for the pure rendering helpers in format.ts. No TTY, so color is
 // disabled and output is plain — the assertions check structure, not color.
 
-import { assert, assertEquals } from "jsr:@std/assert@1";
-import { setColorEnabled } from "jsr:@std/fmt@1/colors";
+import { assert, assertEquals } from "@std/assert";
+import { setColorEnabled } from "@std/fmt/colors";
 import {
   boxed,
   formatApprovals,

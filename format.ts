@@ -1,7 +1,7 @@
 // Pure rendering helpers — no shared state, no I/O. Shared by the main and
 // settings views (and exercised directly by the tests).
 
-import { stripAnsiCode } from "jsr:@std/fmt@1/colors";
+import { stripAnsiCode } from "@std/fmt/colors";
 import { bold, cyan, dim, green, red, yellow } from "./colors.ts";
 
 // deno-lint-ignore no-control-regex

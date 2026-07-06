@@ -12,7 +12,7 @@ import {
   red,
   setColorEnabled,
   yellow,
-} from "jsr:@std/fmt@1/colors";
+} from "@std/fmt/colors";
 
 // grey: British spelling used throughout the app.
 const grey = gray;

@@ -3,7 +3,7 @@
 // subprocess helpers have their own test files (format.test.ts,
 // subprocess.test.ts).
 
-import { assert, assertEquals } from "jsr:@std/assert@1";
+import { assert, assertEquals } from "@std/assert";
 import {
   decodeKeys,
   extractCheckItems,

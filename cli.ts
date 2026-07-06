@@ -1,7 +1,7 @@
 // Command-line parsing via @std/cli. Returns a plain options object; main.ts
 // applies it to its runtime state.
 
-import { parseArgs as parse } from "jsr:@std/cli@1/parse-args";
+import { parseArgs as parse } from "@std/cli/parse-args";
 import { die } from "./colors.ts";
 
 export type Mode =
