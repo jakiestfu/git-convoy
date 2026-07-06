@@ -13,7 +13,8 @@
   },
   "fmt": {
     "exclude": [
-      "dist/"
+      "dist/",
+      "*.svg"
     ]
   },
   "lint": {
